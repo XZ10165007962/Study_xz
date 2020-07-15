@@ -19,7 +19,6 @@ for i in sample_feature.columns:
         sample_feature[i] = sample_feature[i].astype(np.int32)
 
 continuous_feature_names = [x for x in sample_feature.columns if x not in ['price','brand','model','brand']]
-
 sample_feature = sample_feature.dropna().replace('-',0).reset_index(drop=True)
 train = sample_feature[continuous_feature_names + ['price']]
 
