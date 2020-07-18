@@ -47,6 +47,6 @@ def twoSum1(nums,target):
 		if target - nums[x] in d:
 			return d[target-nums[x]],x
 		else:
-			d[nums[x]] = x;print(d)
+			d[nums[x]] = x
 
 print(twoSum1( [2,2,7,11,15],9))
