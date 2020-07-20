@@ -16,6 +16,8 @@ from sklearn.datasets import make_moons
 from sklearn.metrics import accuracy_score,roc_auc_score
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import StratifiedKFold
+
+
 '''
 #简单的加权平均
 # 生成一些简单的样本数据，test_prei 代表第i个模型的预测值
@@ -83,7 +85,7 @@ print('Stacking_pre MAE:',metrics.mean_absolute_error(y_test_true, Stacking_pre)
 '''
 
 #分类模型融合
-
+'''
 #硬投票：对多个模型直接进行投票，不区分模型结果的相对重要度，最终投票数最多的类为最终被预测的类。
 iris = datasets.load_iris()
 
@@ -96,5 +98,34 @@ clf1 = XGBClassifier(learning_rate=0.1, n_estimators=150, max_depth=3, min_child
 clf2 = RandomForestClassifier(n_estimators=50, max_depth=1, min_samples_split=4,
                               min_samples_leaf=63,oob_score=True)
 clf3 = SVC(C=0.1)
+# 硬投票
+eclf = VotingClassifier(estimators=[('xgb', clf1), ('rf', clf2), ('svc', clf3)], voting='hard')
+for clf, label in zip([clf1, clf2, clf3, eclf], ['XGBBoosting', 'Random Forest', 'SVM', 'Ensemble']):
+    scores = cross_val_score(clf, x, y, cv=5, scoring='accuracy')
+    print("Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), label))
+'''
+
+'''
+#软投票
+
+iris = datasets.load_iris()
+
+x = iris.data
+y = iris.target
+x_train , x_test, y_train, y_test = train_test_split(x,y,test_size=0.3)
+
+clf1 = XGBClassifier(learning_rate=0.1, n_estimators=150, max_depth=3, min_child_weight=2, subsample=0.8,
+                     colsample_bytree=0.8, objective='binary:logistic')
+clf2 = RandomForestClassifier(n_estimators=50,max_depth=1,min_samples_split=4,
+                             min_samples_leaf=63,oob_score=True)
+clf3 = SVC(C=0.1,probability=True)
+
+eclf = VotingClassifier(estimators=[('xgb', clf1), ('rf', clf2), ('svc', clf3)], voting='soft', weights=[2, 1, 1])
+
+for clf, label in zip([clf1, clf2, clf3, eclf], ['XGBBoosting', 'Random Forest', 'SVM', 'Ensemble']):
+    scores = cross_val_score(clf, x, y, cv=5, scoring='accuracy')
+    print("Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), label))
+'''
+
 
 

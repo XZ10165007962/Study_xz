@@ -1,8 +1,10 @@
 
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.model_selection import GridSearchCV, train_test_split, cross_val_score
 from sklearn import preprocessing
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 
 
 pd.set_option("display.max_columns",None)
@@ -13,8 +15,6 @@ pd.set_option("display.width",1000)
 def classify0(inX,dataSet,k,j):
     dataSetSize = dataSet.shape[0]
     diffMat = np.tile(inX,(dataSetSize,1)) - dataSet
-    '''sqDistances = dataDistance(diffMat)
-    distances = sqDistances**0.5'''
 
     sqDiffMat = diffMat ** 2
     sqDistances = sqDiffMat.sum(axis=1)
@@ -28,9 +28,6 @@ def classify0(inX,dataSet,k,j):
     bestDistances = np.mean(distances[sortedDistIndicies[:j]])
     print('平均值')
     print(bestDistances)
-    '''diffMat1 = np.tile(dataSet[bestIndex], (dataSetSize, 1)) - dataSet
-    sqDistances1 = dataDistance(diffMat1)
-    distances1 = sqDistances1 ** 0.5'''
     bests = []
     for i in bestIndex:
         diffMat1 = np.tile(dataSet[i], (dataSetSize, 1)) - dataSet
@@ -48,17 +45,46 @@ def classify0(inX,dataSet,k,j):
     print(bests)
     meanBest = np.mean(bests)
     if meanBest > bestDistances:
+        np.row_stack((dataSet,inX))
         return 1
     else:
         return 0
 
+def classify1(inX,dataSet):
+
+    cent = np.mean(dataSet,axis=0)
+    dataSetSize = np.shape(cent)
+    diffMat = inX - cent
+    sqDiffMat = diffMat ** 2
+    sqDistances = sqDiffMat.sum()
+    print(sqDistances)
+    distances = sqDistances ** 0.5
+    print(distances)
+
+def classify2(dataYang,dataTest):
+
+    Y = dataYang['label']
+    dataYang.drop('label',axis=1,inplace=True)
+    X = min_max_scaler.transform(dataYang)
+    X_train1,X_test,Y_train1,Y_test = train_test_split(dataYang,Y)
+    lin_model = LogisticRegression().fit(X_train1,Y_train1)
+    lin_model = SVC(C=1000, kernel="rbf", gamma=0.1)
+    scores = cross_val_score(lin_model,X_test,Y_test,cv=5)
+    print(scores)
+
+
+
 if __name__ == '__main__':
+    '''da = pd.DataFrame([[1,2,3],[3,4,5]])
+    print(np.mean(da,axis=0))
+    print(ai)'''
     leables = []
-    dataYang = pd.read_csv(r'F:\data\63\yang1.csv',encoding='utf-8').dropna(axis=1) # 806x200
-    dataTest = pd.read_csv(r'F:\data\63\testnew.csv',encoding='utf-8')
-    print(dataYang.head())
-    print(dataTest.head())
-    print(0/1)
+    dataYang = pd.read_csv(r'E:\dataset\718_rdkit\rdkit_train.csv',encoding='utf-8') # (779, 354)
+    dataTest = pd.read_csv(r'E:\dataset\718_rdkit\rdkit_predict.csv',encoding='utf-8')#(4624, 354)
+    #dataYang = dataYang[dataYang['label'] > 0]
+    #dataYang.drop('label',axis=1,inplace=True)
+    #dataYang.dropna(inplace=True)
+    #dataTest.dropna(inplace=True)
     # 归一化数据
     dataYang.drop_duplicates(inplace=True )
     min_max_scaler = preprocessing.MinMaxScaler()
@@ -66,8 +92,11 @@ if __name__ == '__main__':
     X_test = min_max_scaler.fit_transform(dataTest)
     #X_train = preprocessing.scale(dataYang)
     #X_test = preprocessing.scale(dataTest)
-    for i in X_test:
-        leables.append(classify0(i,X_train,10,2))
+    data_std = X_train.std(ddof=0)
+    classify2(dataYang,dataTest)
+    #for i in X_test:
+        #leables.append(classify0(i,X_train,10,1))
+        #leables.append(classify1(i, X_train))
     num = 0
     for i in leables:
         if i == 1:
@@ -75,7 +104,7 @@ if __name__ == '__main__':
     err = float(num / len(X_test) * 100)
     print(err)
     print(leables)
-    dataTest['label'] = list(leables)
+    #dataTest['label'] = list(leables)
     #dataTest.to_csv(r'F:\data\63\datatest1.csv')
     #print('生成预测文件，算法运行结束')
 
