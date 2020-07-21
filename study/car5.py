@@ -16,8 +16,9 @@ from sklearn.datasets import make_moons
 from sklearn.metrics import accuracy_score,roc_auc_score
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import StratifiedKFold
-
-
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import ExtraTreesClassifier,GradientBoostingClassifier
+from mlxtend.classifier import StackingClassifier
 '''
 #简单的加权平均
 # 生成一些简单的样本数据，test_prei 代表第i个模型的预测值
@@ -127,5 +128,106 @@ for clf, label in zip([clf1, clf2, clf3, eclf], ['XGBBoosting', 'Random Forest',
     print("Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), label))
 '''
 
+#分类的stacking blending融合
+'''
+stacking是一种分层模型集成框架。
+以两层为例，第一层由多个基学习器组成，其输入为原始训练集，第二层的模型则是以第一层基学习器的输出作为训练集进行再训练，
+从而得到完整的stacking模型, stacking两层模型都使用了全部的训练数据。
+'''
+'''
+iris = datasets.load_iris()
+data_0 = iris.data
+data = data_0[:100,:]
+
+target_0 = iris.target
+target = target_0[:100]
+
+#模型融合中使用到的各个单模型
+clfs = [LogisticRegression(solver='lbfgs'),
+        RandomForestClassifier(n_estimators=5, n_jobs=-1, criterion='gini'),
+        ExtraTreesClassifier(n_estimators=5, n_jobs=-1, criterion='gini'),
+        ExtraTreesClassifier(n_estimators=5, n_jobs=-1, criterion='entropy'),
+        GradientBoostingClassifier(learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=5)]
+
+X,X_predict,y,y_predict = train_test_split(data,target,test_size=0.3,random_state=2020)
+
+dataset_blend_train = np.zeros((X.shape[0],len(clfs)))
+dataset_blend_test = np.zeros((X_predict.shape[0],len(clfs)))
+
+#5折stacking
+n_split = 5
+skf = StratifiedKFold(n_split)
+skf = skf.split(X,y)
 
 
+for j ,clf in enumerate(clfs):
+    print(j)
+    dataset_blend_test_j = np.zeros((X_predict.shape[0],5))
+    for i ,(train,test) in enumerate(skf):
+        print('i',i)
+        #5折交叉训练,使用地i个部分作为预测，剩余的部分来训练模型，获得其预测的输出作为地i部分的新特征
+        X_train,y_train,X_test,y_test = X[train],y[train],X[test],y[test]
+        clf.fit(X_train,y_train)
+        y_submission = clf.predict_proba(X_test)[:,1]
+        dataset_blend_train[test,j] = y_submission
+        dataset_blend_test_j[:,i] = clf.predict_proba(X_predict)[:,1]
+    #对于测试集，直接用这k个模型的预测值均值作为新的特征
+    dataset_blend_test[:,j] = dataset_blend_test_j.mean(1)
+    print('val auc Score: %f' % roc_auc_score(y_predict,dataset_blend_test[:,j]))
+
+clf =LogisticRegression(solver='lbfgs')
+clf.fit(dataset_blend_train,y)
+y_submission = clf.predict_proba(dataset_blend_test)[:,1]
+
+print('val auc Score of Stacking: %f' %(roc_auc_score(y_predict,y_submission)))
+'''
+
+'''
+Blending，其实和Stacking是一种类似的多层模型融合的形式
+
+其主要思路是把原始的训练集先分成两部分，比如70%的数据作为新的训练集，剩下30%的数据作为测试集。
+
+在第一层，我们在这70%的数据上训练多个模型，然后去预测那30%数据的label，同时也预测test集的label。
+
+在第二层，我们就直接用这30%数据在第一层预测的结果做为新特征继续训练，然后用test集第一层预测的label做特征，用第二层训练的模型做进一步预测
+'''
+
+iris = datasets.load_iris()
+data_0 = iris.data
+data = data_0[:100,:]
+
+target_0 = iris.target
+target = target_0[:100]
+
+#模型融合中使用到的各个单模型
+clfs = [LogisticRegression(solver='lbfgs'),
+        RandomForestClassifier(n_estimators=5, n_jobs=-1, criterion='gini'),
+        RandomForestClassifier(n_estimators=5, n_jobs=-1, criterion='entropy'),
+        ExtraTreesClassifier(n_estimators=5, n_jobs=-1, criterion='gini'),
+        #ExtraTreesClassifier(n_estimators=5, n_jobs=-1, criterion='entropy'),
+        GradientBoostingClassifier(learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=5)]
+
+x,x_predict,y,y_predict = train_test_split(data,target,test_size=0.3,random_state=2020)
+
+#切分一部分数据作为测试集
+X, X_predict, y, y_predict = train_test_split(data, target, test_size=0.3, random_state=2020)
+
+#切分训练数据集为d1,d2两部分
+X_d1, X_d2, y_d1, y_d2 = train_test_split(X, y, test_size=0.5, random_state=2020)
+dataset_d1 = np.zeros((X_d2.shape[0], len(clfs)))
+dataset_d2 = np.zeros((X_predict.shape[0], len(clfs)))
+
+for j, clf in enumerate(clfs):
+    #依次训练各个单模型
+    clf.fit(X_d1, y_d1)
+    y_submission = clf.predict_proba(X_d2)[:, 1]
+    dataset_d1[:, j] = y_submission
+    #对于测试集，直接用这k个模型的预测值作为新的特征。
+    dataset_d2[:, j] = clf.predict_proba(X_predict)[:, 1]
+    print("val auc Score: %f" % roc_auc_score(y_predict, dataset_d2[:, j]))
+
+#融合使用的模型
+clf = GradientBoostingClassifier(learning_rate=0.02, subsample=0.5, max_depth=6, n_estimators=30)
+clf.fit(dataset_d1, y_d2)
+y_submission = clf.predict_proba(dataset_d2)[:, 1]
+print("Val auc Score of Blending: %f" % (roc_auc_score(y_predict, y_submission)))
