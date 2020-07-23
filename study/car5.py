@@ -6,19 +6,25 @@ from sklearn.datasets import make_blobs
 from sklearn import datasets
 from sklearn.tree import DecisionTreeClassifier
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
 from sklearn.ensemble import VotingClassifier
 from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.datasets import make_moons
-from sklearn.metrics import accuracy_score,roc_auc_score
+from sklearn.metrics import accuracy_score, roc_auc_score, mean_absolute_error
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import ExtraTreesClassifier,GradientBoostingClassifier
 from mlxtend.classifier import StackingClassifier
+from mlxtend.plotting import plot_learning_curves
+from mlxtend.plotting import plot_decision_regions
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+import xgboost as xgb
+import lightgbm as lgb
 '''
 #简单的加权平均
 # 生成一些简单的样本数据，test_prei 代表第i个模型的预测值
@@ -164,7 +170,6 @@ for j ,clf in enumerate(clfs):
     print(j)
     dataset_blend_test_j = np.zeros((X_predict.shape[0],5))
     for i ,(train,test) in enumerate(skf):
-        print('i',i)
         #5折交叉训练,使用地i个部分作为预测，剩余的部分来训练模型，获得其预测的输出作为地i部分的新特征
         X_train,y_train,X_test,y_test = X[train],y[train],X[test],y[test]
         clf.fit(X_train,y_train)
@@ -191,7 +196,7 @@ Blending，其实和Stacking是一种类似的多层模型融合的形式
 
 在第二层，我们就直接用这30%数据在第一层预测的结果做为新特征继续训练，然后用test集第一层预测的label做特征，用第二层训练的模型做进一步预测
 '''
-
+'''
 iris = datasets.load_iris()
 data_0 = iris.data
 data = data_0[:100,:]
@@ -206,8 +211,6 @@ clfs = [LogisticRegression(solver='lbfgs'),
         ExtraTreesClassifier(n_estimators=5, n_jobs=-1, criterion='gini'),
         #ExtraTreesClassifier(n_estimators=5, n_jobs=-1, criterion='entropy'),
         GradientBoostingClassifier(learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=5)]
-
-x,x_predict,y,y_predict = train_test_split(data,target,test_size=0.3,random_state=2020)
 
 #切分一部分数据作为测试集
 X, X_predict, y, y_predict = train_test_split(data, target, test_size=0.3, random_state=2020)
@@ -231,3 +234,221 @@ clf = GradientBoostingClassifier(learning_rate=0.02, subsample=0.5, max_depth=6,
 clf.fit(dataset_d1, y_d2)
 y_submission = clf.predict_proba(dataset_d2)[:, 1]
 print("Val auc Score of Blending: %f" % (roc_auc_score(y_predict, y_submission)))
+'''
+
+'''
+#分类的stacking融合（利用mlxtend）
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import itertools
+
+iris = datasets.load_iris()
+X,y = iris.data[:,1:3],iris.target
+
+clf1 = KNeighborsClassifier(n_neighbors=1)
+clf2 = RandomForestClassifier(random_state=1)
+clf3 = GaussianNB()
+lr = LogisticRegression()
+sclf = StackingClassifier(classifiers=[clf1,clf2,clf3],meta_classifier=lr)
+label = ['KNN','Random Forest','Naive Bayes','Satcking Classifier']
+clf_list = [clf1,clf2,clf3,sclf]
+
+fig = plt.figure(figsize=(10,8))
+gs = gridspec.GridSpec(2,2)
+grid = itertools.product([0,1],repeat=2)
+
+clf_cv_mean = []
+clf_cv_std = []
+for clf, label, grd in zip(clf_list, label, grid):
+    scores = cross_val_score(clf, X, y, cv=3, scoring='accuracy')
+    print("Accuracy: %.2f (+/- %.2f) [%s]" % (scores.mean(), scores.std(), label))
+    clf_cv_mean.append(scores.mean())
+    clf_cv_std.append(scores.std())
+
+    clf.fit(X, y)
+    ax = plt.subplot(gs[grd[0], grd[1]])
+    fig = plot_decision_regions(X=X, y=y, clf=clf)
+    plt.title(label)
+
+plt.show()
+'''
+
+Train_data = pd.read_csv(r'F:\data\二手车\used_car_train_20200313.csv',sep=' ')
+TestA_data = pd.read_csv(r'F:\data\二手车\used_car_testB_20200421.csv',sep=' ')
+
+numerical_cols = Train_data.select_dtypes(exclude = 'object').columns
+print(numerical_cols)
+
+feature_cols = [col for col in numerical_cols if col not in ['SaleID','name','regDate','price']]
+
+X_data = Train_data[feature_cols]
+Y_data = Train_data['price']
+
+X_test = TestA_data[feature_cols]
+
+X_data = X_data.fillna(-1)
+X_test = X_test.fillna(-1)
+
+def build_model_lr(x_train,y_train):
+    reg_model = linear_model.LogisticRegression()
+    reg_model.fit(x_train,y_train)
+    return reg_model
+
+def build_model_ridge(x_train,y_train):
+    reg_model = linear_model.Ridge(alpha=0.7)
+    reg_model.fit(x_train,y_train)
+    return reg_model
+
+def build_model_lasso(x_train,y_test):
+    reg_model = linear_model.LassoCV()
+    reg_model.fit(x_train,y_test)
+    return reg_model
+
+def build_model_gbdt(x_train,y_train):
+    estimator = GradientBoostingRegressor(loss='ls', subsample=0.85, max_depth=5, n_estimators=100)
+    param_grid={
+        'learning_rate':[0.05,0.08,0.1,0.2]
+    }
+    gbdt = GridSearchCV(estimator,param_grid,cv=3)
+    gbdt.fit(x_train, y_train)
+    print(gbdt.best_params_)
+    # print(gbdt.best_estimator_ )
+    return gbdt
+
+def build_model_xgb(x_train,y_train):
+    model = xgb.XGBRegressor(n_estimators=120, learning_rate=0.08, gamma=0, subsample=0.8,\
+        colsample_bytree=0.9, max_depth=5)
+    model.fit(x_train,y_train)
+    return model
+
+def build_model_lgb(x_train,y_train):
+    estimator = lgb.LGBMRegressor(num_leaves=63,n_estimators=100)
+    param_grid = {
+        'learning_rate': [0.01, 0.05, 0.1]
+    }
+    gbm = GridSearchCV(estimator,param_grid)
+    gbm.fit(x_train,y_train)
+    return gbm
+
+xgr = xgb.XGBRegressor(n_estimators=120, learning_rate=0.1, subsample=0.8,\
+        colsample_bytree=0.9, max_depth=7) # ,objective ='reg:squarederror'
+
+scores_train = []
+scores = []
+
+'''sk=StratifiedKFold(n_splits=5,shuffle=True,random_state=0)
+
+for train_ind, val_ind in sk.split(X_data, Y_data):
+    train_x = X_data.iloc[train_ind].values
+    train_y = Y_data.iloc[train_ind]
+    val_x = X_data.iloc[val_ind].values
+    val_y = Y_data.iloc[val_ind]
+
+    xgr.fit(train_x, train_y)
+    pred_train_xgb = xgr.predict(train_x)
+    pred_xgb = xgr.predict(val_x)
+
+    score_train = mean_absolute_error(train_y, pred_train_xgb)
+    scores_train.append(score_train)
+    score = mean_absolute_error(val_y, pred_xgb)
+    scores.append(score)
+
+print('Train mae:', np.mean(score_train))
+print('Val mae', np.mean(scores))'''
+
+
+x_train,x_val,y_train,y_val = train_test_split(X_data,Y_data,test_size=0.3)
+
+## Train and Predict
+print('Predict LR...')
+model_lr = build_model_lr(x_train,y_train)
+val_lr = model_lr.predict(x_val)
+subA_lr = model_lr.predict(X_test)
+
+print('Predict Ridge...')
+model_ridge = build_model_ridge(x_train,y_train)
+val_ridge = model_ridge.predict(x_val)
+subA_ridge = model_ridge.predict(X_test)
+
+print('Predict Lasso...')
+model_lasso = build_model_lasso(x_train,y_train)
+val_lasso = model_lasso.predict(x_val)
+subA_lasso = model_lasso.predict(X_test)
+
+print('Predict GBDT...')
+model_gbdt = build_model_gbdt(x_train,y_train)
+val_gbdt = model_gbdt.predict(x_val)
+subA_gbdt = model_gbdt.predict(X_test)
+
+print('predict XGB...')
+model_xgb = build_model_xgb(x_train,y_train)
+val_xgb = model_xgb.predict(x_val)
+subA_xgb = model_xgb.predict(X_test)
+
+print('predict lgb...')
+model_lgb = build_model_lgb(x_train,y_train)
+val_lgb = model_lgb.predict(x_val)
+subA_lgb = model_lgb.predict(X_test)
+'''
+def Weighted_method(test_pre1,test_pre2,test_pre3,w=[1/3,1/3,1/3]):
+    Weighted_result = w[0]*pd.Series(test_pre1)+w[1]*pd.Series(test_pre2)+w[2]*pd.Series(test_pre3)
+    return Weighted_result
+
+## Init the Weight
+w = [0.3,0.4,0.3]
+
+## 测试验证集准确度
+val_pre = Weighted_method(val_lgb,val_xgb,val_gbdt,w)
+MAE_Weighted = mean_absolute_error(y_val,val_pre)
+print('MAE of Weighted of val:',MAE_Weighted)
+
+## 预测数据部分
+subA = Weighted_method(subA_lgb,subA_xgb,subA_gbdt,w)
+
+## 生成提交文件
+sub = pd.DataFrame()
+sub['SaleID'] = X_test.index
+sub['price'] = subA
+sub.to_csv('./sub_Weighted.csv',index=False)'''
+
+
+## 第一层
+train_lgb_pred = model_lgb.predict(x_train)
+train_xgb_pred = model_xgb.predict(x_train)
+train_gbdt_pred = model_gbdt.predict(x_train)
+
+Strak_X_train = pd.DataFrame()
+Strak_X_train['Method_1'] = train_lgb_pred
+Strak_X_train['Method_2'] = train_xgb_pred
+Strak_X_train['Method_3'] = train_gbdt_pred
+
+Strak_X_val = pd.DataFrame()
+Strak_X_val['Method_1'] = val_lgb
+Strak_X_val['Method_2'] = val_xgb
+Strak_X_val['Method_3'] = val_gbdt
+
+Strak_X_test = pd.DataFrame()
+Strak_X_test['Method_1'] = subA_lgb
+Strak_X_test['Method_2'] = subA_xgb
+Strak_X_test['Method_3'] = subA_gbdt
+
+## level2-method
+model_lr_Stacking = build_model_lr(Strak_X_train,y_train)
+## 训练集
+train_pre_Stacking = model_lr_Stacking.predict(Strak_X_train)
+print('MAE of Stacking-LR:',mean_absolute_error(y_train,train_pre_Stacking))
+
+## 验证集
+val_pre_Stacking = model_lr_Stacking.predict(Strak_X_val)
+print('MAE of Stacking-LR:',mean_absolute_error(y_val,val_pre_Stacking))
+
+## 预测集
+print('Predict Stacking-LR...')
+subA_Stacking = model_lr_Stacking.predict(Strak_X_test)
+
+subA_Stacking[subA_Stacking<10]=10  ## 去除过小的预测值
+
+sub = pd.DataFrame()
+sub['SaleID'] = TestA_data.SaleID
+sub['price'] = subA_Stacking
+sub.to_csv('./sub_Stacking.csv',index=False)
