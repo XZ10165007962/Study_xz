@@ -26,11 +26,11 @@ import joblib
 
 
 x_train = pd.read_csv(r'E:\dataset\smile\smile_train.csv', encoding='utf-8')
-x_test = pd.read_csv(r'E:\dataset\smile\smile_predict.csv', encoding='utf-8')
+x_test1 = pd.read_csv(r'E:\dataset\smile\smile_predict.csv', encoding='utf-8')
 
 y = x_train['label']
 x_train = x_train['smile']
-x_test = x_test['smile']
+x_test = x_test1['smile']
 
 smi_data = []
 smi_data_test = []
@@ -74,6 +74,8 @@ model = LogisticRegression(penalty='l1',max_iter=10,tol=0.0001).fit(X_train,y_tr
 #model = SVC(C=1000, kernel="rbf", gamma=0.1).fit(X_train, y_train)
 value = model.predict(X_test)
 finall = model.predict(calcMorganFingerprint(smi_data_test))
+x_test1['label'] = finall
+x_test1.to_csv(r'E:\dataset\smile\finall.csv',index=False)
 for i in finall:
     print(i,end="")
 print(np.array(value))
