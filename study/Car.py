@@ -16,6 +16,7 @@ for i in train_data.columns:
     elif dtype == 'int64':
         train_data[i] = train_data[i].astype(np.int32)
 
+print(train_data.describe())
 
 train_data['notRepairedDamage'].replace('-',0,inplace=True)
 test_data['notRepairedDamage'].replace('-',1,inplace=True)
@@ -94,6 +95,7 @@ from sklearn.model_selection import cross_val_score
 model = LinearRegression()
 results = model.fit(X,y)
 finall = results.predict(test_X)
+finall = np.power(np.e,finall)
 print(finall)
 sub = pd.DataFrame()
 sub['SaleID'] = test_data.index
