@@ -80,20 +80,24 @@ for i in finall:
         num1 += 1
 print(num1,num0)'''
 
-
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import cross_val_score
+from sklearn.preprocessing import StandardScaler
 
 X = np.asarray(train_data.drop('price',axis=1))
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
 print('---X---')
 print(X)
 y = np.asarray(train_data['price'])
 test_X = np.asarray(test_data)
 print('---y---')
 print(test_X)
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import cross_val_score
 
 model = LinearRegression()
 results = model.fit(X,y)
+scores = cross_val_score(model,X,y)
+print(scores)
 finall = results.predict(test_X)
 finall = np.power(np.e,finall)
 print(finall)
