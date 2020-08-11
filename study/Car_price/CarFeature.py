@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from mlxtend.regressor import StackingRegressor
 from scipy import stats
+
 plt.rcParams['font.sans-serif']=['SimHei'] #用来正常显示中文标签
 plt.rcParams['axes.unicode_minus']=False #用来正常显示负号
 
@@ -91,9 +93,13 @@ lis = list(corr_p[corr_p.abs() > 0.1].index)[:-1]
 test_data = test_data.loc[:,lis]
 
 
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression,Lasso
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler,PolynomialFeatures
+from sklearn.ensemble import GradientBoostingRegressor
 train_data['price'] = np.log(train_data['price'])
 X = np.asarray(train_data.drop('price',axis=1))
 y = np.asarray(train_data['price'])
@@ -108,15 +114,30 @@ test_X = np.asarray(test_data)
 poly = PolynomialFeatures(degree=2)
 X = poly.fit_transform(X)
 test_X = poly.transform(test_X)
-model = LinearRegression()
+print('完成特征多项式组合')
+'''model = LinearRegression()
 results = model.fit(X,y)
 scores = cross_val_score(model,X,y)
+print(scores)94'''
+
+clf1 = LinearRegression()
+clf2 = KNeighborsRegressor()
+clf3 = SVR()
+clf4 = DecisionTreeRegressor()
+
+'''sclf = StackingRegressor(regressors=[clf1,clf2,clf3],meta_regressor=clf4)
+
+results = sclf.fit(X,y)
+scores = cross_val_score(sclf,X,y)
+print(scores)'''
+results = GradientBoostingRegressor(random_state=0).fit(X,y)
+scores = cross_val_score(GradientBoostingRegressor(random_state=0),X,y)
 print(scores)
-'''finall = results.predict(test_X)
+finall = results.predict(test_X)
 finall = np.power(np.e,finall)
 print(finall)
 sub = pd.DataFrame()
 sub['SaleID'] = test_data.index
 sub['price'] = finall
-sub.to_csv('./sub_Stacking.csv',index=False)'''
+sub.to_csv('./sub_Stacking.csv',index=False)
 
