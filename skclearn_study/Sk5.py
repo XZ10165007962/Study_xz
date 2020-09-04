@@ -60,9 +60,9 @@ X_scatter =StandardScaler()
 y_scatter = StandardScaler()
 
 X_train = X_scatter.fit_transform(X_train)
-y_train = y_scatter.fit_transform(y_train.reshpe(-1,1))
+
 X_test = X_scatter.transform(X_test)
-y_test = y_scatter.transform(y_test.reshape(-1,1))
+
 
 regressor = SGDRegressor(loss='squared_loss')
 scores = cross_val_score(regressor,X_train,y_train,cv=5)
