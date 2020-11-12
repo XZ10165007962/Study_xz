@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     print(datetime.datetime.now())'''
 
-    current_time = 20200706000000
+    '''current_time = 20200706000000
     timearray = datetime.datetime.strptime(str(current_time), "%Y%m%d%H%M%S")
     print(timearray)
     current_time1 = current_time + 100
@@ -70,7 +70,45 @@ if __name__ == '__main__':
     print(timestamp)
     timearray = time.strptime(str(current_time1), "%Y%m%d%H%M%S")
     timestamp = int(time.mktime(timearray))
-    print(timestamp)
+    print(timestamp)'''
+
+    '''timestamp = 1570774556514
+
+    # 转换成localtime
+    time_local = time.localtime(timestamp / 1000)
+    # 转换成新的时间格式(精确到秒)
+    dt = time.strftime("%Y%m%d%H%M%S", time_local)
+    print(dt)  # 2019-10-11 14:15:56
+
+    d = datetime.datetime.fromtimestamp(timestamp / 1000)
+    # 精确到毫秒
+    str1 = d.strftime("%Y%m%d%H%M%S")
+    td_datetime = datetime.datetime.strptime(str1, '%Y%m%d%H%M%S')
+    td_datetime = td_datetime + datetime.timedelta(days=2)
+    print(td_datetime)
+    print(str1)  # 2019-10-11 14:15:56.514000
+
+    insert_time = datetime.datetime.fromtimestamp(timestamp / 1000)
+    insert_time = insert_time.strftime("%Y%m%d%H%M%S")
+    insert_time = datetime.datetime.strptime(insert_time, '%Y%m%d%H%M%S')
+    insert_time = insert_time - datetime.timedelta(minutes=30)
+    print(insert_time)
+
+    print('---------')
+    i = 1570774556514
+    insert_time = datetime.datetime.fromtimestamp(i / 1000)
+    insert_time = insert_time.strftime("%Y%m%d%H%M%S")
+    insert_time = datetime.datetime.strptime(insert_time, '%Y%m%d%H%M%S')
+    insert_time = insert_time + datetime.timedelta(minutes=2)
+    print(insert_time)
+
+    a = '10'
+    if isinstance(a,int):
+        print('True')
+    else:
+        print('False')
+        print(a)
+        print(type(int(a)))'''
 
     '''import pandas as pd
     data1 = [1,2,3]
@@ -81,3 +119,18 @@ if __name__ == '__main__':
     print(data)
     print(data.corr())'''
 
+    '''current_time = 20200706000000
+    timearray = datetime.datetime.strptime(str(current_time), "%Y%m%d%H%M%S")
+    print(timearray.timestamp()*1000)
+
+    tie = int(datetime.datetime.now().timestamp()) * 1000
+    print( tie)'''
+
+    import random
+    import duojincheng
+
+    for _ in range(10):
+        a = random.random()
+        print('a:',a)
+        a = a*0.02+0.97
+        print('new a:',a)
